@@ -1,0 +1,26 @@
+let g:syntastic_cpp_compiler = "clang++"
+let g:syntastic_c_compiler = "gcc-6"
+
+let g:syntastic_cpp_check_header = 1
+let g:syntastic_cpp_auto_refresh_includes = 1
+let g:syntastic_cpp_include_dirs = ["."]
+let g:syntastic_cpp_compiler_options = "-std=c++11 -Werror -Wall -Wextra"
+            \ " -Wcast-align -Wcast-qual -Wno-int-to-pointer-cast -Wctor-dtor-privacy"
+            \ " -Wdisabled-optimization -Wformat=2 -Winit-self -Wreturn-type"
+            \ " -Wmissing-include-dirs -Wold-style-cast -Woverloaded-virtual"
+            \ " -Wredundant-decls -Wsign-conversion -Wsign-promo -Wsign-compare"
+            \ " -Wstrict-overflow=2 -Wswitch-default -Wswitch-enum -Wundef"
+            \ " -Wshadow -Wmissing-braces -Wparentheses -Wuninitialized "
+            \ " -Wstrict-aliasing"
+
+let g:syntastic_c_check_header = 1
+let g:syntastic_c_auto_refresh_includes = 1
+let g:syntastic_c_include_dirs = ["."]
+let g:syntastic_c_compiler_options = "-std=c11 -Werror -Wall -Wextra"
+            \ " -Wcast-align -Wcast-qual"
+            \ " -Wdisabled-optimization -Wformat=2 -Wreturn-type"
+            \ " -Wmissing-include-dirs"
+            \ " -Wredundant-decls -Wsign-conversion -Wsign-compare"
+            \ " -Wstrict-overflow=2 -Wswitch-default -Wswitch-enum -Wundef"
+            \ " -Wshadow -Wmissing-braces -Wparentheses -Wuninitialized "
+            \ " -Wstrict-aliasing"
