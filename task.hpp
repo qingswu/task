@@ -210,6 +210,13 @@ namespace dsa
                 : tasks_ {}
             {}
 
+            task_queue (task_queue const &) = delete;
+
+            task_queue (task_queue && other) noexcept
+                : tasks_ (std::move (other).tasks_)
+                , done_  (other.done_)
+            {}
+
             void set_done (void)
             {
                 this->done_.store (true);
@@ -270,7 +277,7 @@ namespace dsa
 
         std::vector <task_queue> queues_;
         std::vector <std::thread> threads_;
-        typename Allocator::template rebind <task::task_concept>
+        typename Allocator::template rebind <task::task_concept>::other
             alloc_;
         std::size_t nthreads_;
         std::size_t current_index_ {0};
