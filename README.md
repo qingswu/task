@@ -12,7 +12,7 @@ structures and algorithms) library](https://github.com/daltonwoodard/dsa.git).
 
 If your project requires a tasking system that accounts for tasks that may
 depend on the result of previously queued tasks, consider the
-[awaitable_tasks](https://github.com/daltonwoodard/awaitable-tasks.git) project
+[awaitable_task](https://github.com/daltonwoodard/awaitable-task.git) project
 instead.
 
 ## dependencies
