@@ -178,19 +178,25 @@ namespace detail
         noexcept (noexcept (
             detail::apply_ (
                 std::forward <F> (f), std::forward <T> (t),
-                make_index_sequence <std::tuple_size <T>::value> {}
+                make_index_sequence <std::tuple_size <
+                    typename std::decay <T>::type
+                >::value> {}
             )
         ))
         -> decltype (
             detail::apply_ (
                 std::forward <F> (f), std::forward <T> (t),
-                make_index_sequence <std::tuple_size <T>::value> {}
+                make_index_sequence <std::tuple_size <
+                    typename std::decay <T>::type
+                >::value> {}
             )
         )
     {
         return detail::apply_ (
             std::forward <F> (f), std::forward <T> (t),
-            make_index_sequence <std::tuple_size <T>::value> {}
+            make_index_sequence <std::tuple_size <
+                typename std::decay <T>::type
+            >::value> {}
         );
     }
 }   // namespace utility
