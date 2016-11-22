@@ -317,7 +317,7 @@ namespace dsa
         {
             this->queues_.reserve (nthreads);
             for (std::size_t th = 0; th < nthreads; ++th)
-                this->queues_.emplace_back (alloc);
+                this->queues_.emplace_back ();
 
             this->threads_.reserve (nthreads);
             for (std::size_t th = 0; th < nthreads; ++th)
@@ -357,10 +357,10 @@ namespace dsa
             for (std::size_t k = 0; k < 10 * this->nthreads_; ++k)
                 if (this->queues_ [(idx + k) % this->nthreads_]
                         .try_push (t.first))
-                    return t.second;
+                    return std::move (t.second);
 
             this->queues_ [idx % this->nthreads_].push (std::move (t.first));
-            return t.second;
+            return std::move (t.second);
         }
 
         void push (task && t)
