@@ -38,7 +38,6 @@
 #include <vector>
 #include "utilities/functions.hpp"
 #include "utilities/sequence.hpp"
-#include "utilities/traits.hpp"
 
 
 namespace dsa
@@ -282,10 +281,12 @@ namespace dsa
 
         std::vector <task_queue> queues_;
         std::vector <std::thread> threads_;
+        std::vector <bool> exited_;
         typename Allocator::template rebind <task::task_concept>::other
             alloc_;
         std::size_t nthreads_;
         std::size_t current_index_ {0};
+        std::atomic_size_t queued_ {0};
 
         void run (std::size_t id)
         {
@@ -294,18 +295,53 @@ namespace dsa
 
                 for (std::size_t k = 0; k < 10 * this->nthreads_; ++k) {
                     p = this->queues_ [(id + k) % this->nthreads_].try_pop ();
-                    if (p.first)
-                        break;
+                    if (p.first) {
+                        this->queued_--;
+                        goto call;
+                    }
                 }
 
-                if (!p.first) {
-                    p = this->queues_ [id].pop ();
-                    if (!p.first)
-                        return;
+                p = this->queues_ [id].pop ();
+                if (p.first) {
+                    this->queued_--;
+                    goto call;
+                } else {
+                    goto finish;
                 }
 
+            call:
                 p.second ();
+                continue;
             }
+
+        finish:
+            /*
+             * The done signal has been set and our queue is empty, but there
+             * may still be queued tasks that must be completed, so try and
+             * steal work from other queues before exiting.
+             */
+            while (this->queued_) {
+                std::pair <bool, task> p;
+
+                for (std::size_t k = 0; k < this->nthreads_; ++k) {
+                    p = this->queues_ [(id + k) % this->nthreads_].try_pop ();
+                    if (p.first) {
+                        this->queued_--;
+                        p.second ();
+                    }
+                }
+
+                std::this_thread::yield ();
+            }
+
+            this->exited_ [id] = true;
+        }
+
+        void join (void)
+        {
+            this->done ();
+            for (auto & th : this->threads_)
+                th.join ();
         }
 
     public:
@@ -317,6 +353,7 @@ namespace dsa
                            Allocator const & alloc = Allocator ())
             : queues_   {}
             , threads_  {}
+            , exited_   (nthreads, false)
             , alloc_    (alloc)
             , nthreads_ {nthreads}
         {
@@ -333,15 +370,46 @@ namespace dsa
 
         ~task_system (void)
         {
-            this->done ();
-            for (auto & th : this->threads_)
-                th.join ();
+            this->join ();
         }
 
-        void done (void) noexcept
+        void done (void)
         {
             for (auto & q : this->queues_)
                 q.set_done ();
+        }
+
+        void wait_to_completion (void)
+        {
+            while (true) {
+                std::this_thread::yield ();
+
+                if (this->queued_) {
+                    continue;
+                } else {
+                    auto should_exit = true;
+                    for (auto b : this->exited_)
+                        should_exit &= b;
+                    if (should_exit)
+                        return;
+                }
+            }
+        }
+
+        void reset (void)
+        {
+            this->join ();
+            this->threads_.clear ();
+            this->queues_.clear ();
+            this->queued_.store (0);
+
+            for (std::size_t th = 0; th < this->nthreads_; ++th)
+                this->queues_.emplace_back ();
+
+            for (std::size_t th = 0; th < this->nthreads_; ++th)
+                this->threads_.emplace_back (
+                    &task_system::run, this, th
+                );
         }
 
         template <class F, class ... Args>
@@ -359,11 +427,24 @@ namespace dsa
             );
 
             auto const idx = this->current_index_++;
-            for (std::size_t k = 0; k < 10 * this->nthreads_; ++k)
+            for (std::size_t k = 0; k < 10 * this->nthreads_; ++k) {
+                /*
+                 * In order to maintain consistency we need to speculatively
+                 * incremement the queued count and then decrement only if
+                 * the try_push call failed. This is because the queued count
+                 * must be incremented before a push and decremented only after
+                 * a pop.
+                 */
+                this->queued_++;
                 if (this->queues_ [(idx + k) % this->nthreads_]
-                        .try_push (t.first))
+                        .try_push (t.first)) {
                     return std::move (t.second);
+                } else {
+                    this->queued_--;
+                }
+            }
 
+            this->queued_++;
             this->queues_ [idx % this->nthreads_].push (std::move (t.first));
             return std::move (t.second);
         }
@@ -371,10 +452,23 @@ namespace dsa
         void push (task && t)
         {
             auto const idx = this->current_index_++;
-            for (std::size_t k = 0; k < 10 * this->nthreads_; ++k)
-                if (this->queues_ [(idx + k) % this->nthreads_].try_push (t))
+            for (std::size_t k = 0; k < 10 * this->nthreads_; ++k) {
+                /*
+                 * In order to maintain consistency we need to speculatively
+                 * incremement the queued count and then decrement only if
+                 * the try_push call failed. This is because the queued count
+                 * must be incremented before a push and decremented only after
+                 * a pop.
+                 */
+                this->queued_++;
+                if (this->queues_ [(idx + k) % this->nthreads_].try_push (t)) {
                     return;
+                } else {
+                    this->queued_--;
+                }
+            }
 
+            this->queued_++;
             this->queues_ [idx % this->nthreads_].push (std::move (t));
         }
     };
