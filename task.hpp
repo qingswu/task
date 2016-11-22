@@ -178,6 +178,11 @@ namespace dsa
                          std::forward <Args> (args)...)
             {}
 
+            std::future <R> get_future (void)
+            {
+                return this->_f.get_future ();
+            }
+
             void invoke_ (void) override
             {
                 utility::apply (this->_f, this->_args);
